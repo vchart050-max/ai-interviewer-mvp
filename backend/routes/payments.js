@@ -1,78 +1,69 @@
 const express = require('express');
-const Stripe = require('stripe');
+const Razorpay = require('razorpay');
 const { createClient } = require('@supabase/supabase-js');
 const router = express.Router();
- 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
- 
-// Create checkout session
-router.post('/checkout', async (req, res) => {
+
+// Create subscription
+router.post('/subscribe', async (req, res) => {
   try {
-    const { userId, plan } = req.body;
- 
-    const prices = {
-      starter: 'price_starter_monthly',
-      professional: 'price_professional_monthly',
-      enterprise: 'price_enterprise_monthly',
+    const { email, planId, plan } = req.body;
+
+    // Plan prices in paise (₹200 = 20000 paise)
+    const planPrices = {
+      starter: 5000, // ₹50
+      professional: 20000, // ₹200
+      enterprise: 50000, // ₹500
     };
- 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      customer_email: req.body.email,
-      line_items: [
-        {
-          price: prices[plan],
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/pricing`,
-      metadata: {
-        userId,
-        plan,
-      },
+
+    // Create subscription on Razorpay
+    const subscription = await razorpay.subscriptions.create({
+      plan_id: planId, // You need to create plans in Razorpay dashboard
+      customer_notify: 1,
+      email: email,
     });
- 
-    res.json({ url: session.url });
+
+    res.json({
+      subscriptionId: subscription.id,
+      status: subscription.status,
+    });
   } catch (error) {
-    console.error('Payment error:', error);
+    console.error('Subscription error:', error);
     res.status(400).json({ error: error.message });
   }
 });
- 
-// Webhook for payment confirmation
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+
+// Handle payment success
+router.post('/success', async (req, res) => {
   try {
-    const sig = req.headers['stripe-signature'];
-    const event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
- 
-    if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {
-      const subscription = event.data.object;
- 
-      // Update user subscription in database
-      await supabase
-        .from('users')
-        .update({
-          subscription_status: 'active',
-          subscription_plan: subscription.metadata?.plan,
-          stripe_customer_id: subscription.customer,
-        })
-        .eq('id', subscription.metadata?.userId);
-    }
- 
-    res.json({ received: true });
+    const { userId, subscriptionId, plan } = req.body;
+
+    // Verify subscription with Razorpay
+    const subscription = await razorpay.subscriptions.fetch(subscriptionId);
+
+    // Update user in database
+    await supabase
+      .from('users')
+      .update({
+        subscription_status: 'active',
+        subscription_plan: plan,
+        razorpay_subscription_id: subscriptionId,
+      })
+      .eq('id', userId);
+
+    res.json({ success: true });
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(400).send(`Webhook Error: ${error.message}`);
+    res.status(400).json({ error: error.message });
   }
 });
- 
+
 module.exports = router;
