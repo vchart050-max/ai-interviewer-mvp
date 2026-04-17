@@ -7,6 +7,7 @@ function HRDashboard({ supabase }) {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
  
+ // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchCandidates();
   }, []);
