@@ -1,43 +1,65 @@
 import React, { useState } from 'react';
 
 function HRDashboard({ supabase }) {
-  const [candidates, setCandidates] = useState([]);
-  const [selectedCandidate, setSelectedCandidate] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [candidateName, setCandidateName] = useState('');
+  const [candidateEmail, setCandidateEmail] = useState('');
 
-  // For now, we'll just show a placeholder
-  // Later we'll add real Supabase queries
+  const generateLink = async () => {
+    if (!candidateName || !candidateEmail) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    // Insert into Supabase
+    const { data, error } = await supabase
+      .from('candidates')
+      .insert([
+        {
+          name: candidateName,
+          email: candidateEmail,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      alert("Error creating candidate");
+      return;
+    }
+
+    const candidateId = data.id;
+
+    const link = `${window.location.origin}/interview?candidateId=${candidateId}`;
+
+    await navigator.clipboard.writeText(link);
+
+    alert(`Link copied:\n\n${link}`);
+    
+    // Optional: reset form
+    setCandidateName('');
+    setCandidateEmail('');
+  };
 
   return (
     <div className="hr-dashboard">
-      <nav className="navbar">
-        <h2>ScoreBar - HR Dashboard</h2>
-        <button onClick={() => supabase.auth.signOut()}>Logout</button>
-      </nav>
+      <h1>Send Interview Link</h1>
 
-      <div className="container">
-        <h1>Interview Results</h1>
+      <input 
+        placeholder="Candidate Name"
+        value={candidateName}
+        onChange={(e) => setCandidateName(e.target.value)}
+      />
 
-        <div className="candidates-grid">
-          <div className="candidates-list">
-            <div className="candidate-card">
-              <p className="name">No interviews yet</p>
-              <p className="email">Interviews will appear here once candidates complete them</p>
-            </div>
-          </div>
+      <input 
+        placeholder="Candidate Email"
+        value={candidateEmail}
+        onChange={(e) => setCandidateEmail(e.target.value)}
+      />
 
-          <div className="candidate-details">
-            <h2>Select a candidate to view results</h2>
-            <p>Once a candidate completes their interview, you'll see:</p>
-            <ul>
-              <li>Video recording of the interview</li>
-              <li>Full transcript of conversation</li>
-              <li>AI scores: Technical, Communication, Overall</li>
-              <li>Advance/Reject buttons</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+      <button onClick={generateLink}>
+        Generate & Copy Link
+      </button>
     </div>
   );
 }
