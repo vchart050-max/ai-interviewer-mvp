@@ -10,29 +10,59 @@ const QUESTIONS = [
   "Do you have any questions for us?"
 ];
 
-function Interview() {
+function Interview({ supabase }) {
   const [searchParams] = useSearchParams();
   const candidateId = searchParams.get('candidateId');
-  
+
+  const [candidate, setCandidate] = useState(null);
+  const [checking, setChecking] = useState(true);
+
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [score, setScore] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   const videoRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordingsRef = useRef([]);
 
+  // 🎯 Fetch candidate from Supabase
+  useEffect(() => {
+    async function fetchCandidate() {
+      if (!candidateId) {
+        setChecking(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('candidates')
+        .select('*')
+        .eq('id', candidateId)
+        .single();
+
+      if (error || !data) {
+        console.error(error);
+      } else {
+        setCandidate(data);
+      }
+
+      setChecking(false);
+    }
+
+    fetchCandidate();
+  }, [candidateId, supabase]);
+
+  // 🎥 Start camera
   useEffect(() => {
     startVideo();
   }, []);
 
   const startVideo = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true, 
-        audio: true 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -44,24 +74,24 @@ function Interview() {
 
   const startRecording = async () => {
     try {
-      // Text-to-speech: Ask question
       const question = QUESTIONS[currentQuestion];
-      
+
+      // 🔊 Ask question (TTS)
       const ttsResponse = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/tts`,
         { text: question }
       );
 
-      // Play audio of question
       const audio = new Audio(ttsResponse.data.audioUrl);
       await audio.play();
 
-      // Start recording answer
+      // 🎥 Record answer
       const stream = videoRef.current.srcObject;
       mediaRecorderRef.current = new MediaRecorder(stream);
       const chunks = [];
 
       mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+
       mediaRecorderRef.current.onstop = async () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
         recordingsRef.current.push({
@@ -73,13 +103,13 @@ function Interview() {
       mediaRecorderRef.current.start();
       setIsRecording(true);
 
-      // Record for 60 seconds
       setTimeout(() => {
         mediaRecorderRef.current?.stop();
         setIsRecording(false);
       }, 60000);
+
     } catch (error) {
-      console.error('Error:', error);
+      console.error(error);
     }
   };
 
@@ -87,7 +117,6 @@ function Interview() {
     if (currentQuestion < QUESTIONS.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
-      // All done - submit interview
       submitInterview();
     }
   };
@@ -95,11 +124,9 @@ function Interview() {
   const submitInterview = async () => {
     setLoading(true);
     try {
-      // For each recording, transcribe and collect transcript
       let fullTranscript = '';
 
       for (const recording of recordingsRef.current) {
-        // Transcribe video audio
         const formData = new FormData();
         formData.append('file', recording.video);
 
@@ -111,7 +138,7 @@ function Interview() {
         fullTranscript += `Q: ${recording.question}\nA: ${transcriptResponse.data.transcript}\n\n`;
       }
 
-      // Score with Claude
+      // 🤖 Score interview
       const scoreResponse = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/interview/score`,
         {
@@ -122,18 +149,25 @@ function Interview() {
 
       setScore(scoreResponse.data);
       setIsComplete(true);
+
     } catch (error) {
-      console.error('Error:', error);
+      console.error(error);
       alert('Error submitting interview');
     } finally {
       setLoading(false);
     }
   };
 
+  // ⛔ Block invalid users
+  if (checking) return <p>Loading interview...</p>;
+  if (!candidate) return <p>Invalid or expired link</p>;
+
+  // ✅ Completion screen
   if (isComplete && score) {
     return (
       <div className="interview-complete">
         <h1>Interview Complete!</h1>
+
         <div className="scores">
           <div>
             <p>Technical Knowledge</p>
@@ -148,17 +182,20 @@ function Interview() {
             <h2>{score.overall}/10</h2>
           </div>
         </div>
-        <p>Thank you! Your interview has been submitted.</p>
+
+        <p>Thank you {candidate.name}! Your interview has been submitted.</p>
       </div>
     );
   }
 
+  // 🎯 Main UI
   return (
     <div className="interview">
-      <h1>Interview</h1>
+      <h1>Welcome {candidate.name}</h1>
       <p>Question {currentQuestion + 1} of {QUESTIONS.length}</p>
 
       <video ref={videoRef} autoPlay muted style={{ width: '100%', maxWidth: '500px' }} />
+
       {isRecording && <p style={{ color: 'red' }}>● RECORDING</p>}
 
       <h2>{QUESTIONS[currentQuestion]}</h2>
@@ -170,12 +207,18 @@ function Interview() {
           <button onClick={() => {
             mediaRecorderRef.current?.stop();
             setIsRecording(false);
-          }}>Stop Recording</button>
+          }}>
+            Stop Recording
+          </button>
         )}
 
         {!isRecording && recordingsRef.current.length > currentQuestion && (
           <button onClick={nextQuestion} disabled={loading}>
-            {loading ? 'Processing...' : currentQuestion === QUESTIONS.length - 1 ? 'Submit Interview' : 'Next Question'}
+            {loading
+              ? 'Processing...'
+              : currentQuestion === QUESTIONS.length - 1
+                ? 'Submit Interview'
+                : 'Next Question'}
           </button>
         )}
       </div>
