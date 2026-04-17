@@ -1,38 +1,43 @@
 import React, { useState } from 'react';
 
-function HRDashboard() {
-  const [candidateName, setCandidateName] = useState('');
-  const [candidateEmail, setCandidateEmail] = useState('');
+function HRDashboard({ supabase }) {
+  const [candidates, setCandidates] = useState([]);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const generateLink = async () => {
-    // Create a new candidate in database
-    const candidateId = Math.random().toString(36).substr(2, 9);
-    const link = `${window.location.origin}/interview?candidateId=${candidateId}`;
-    
-    // Copy to clipboard
-    navigator.clipboard.writeText(link);
-    
-    // Show HR the link
-    alert(`Link copied to clipboard:\n\n${link}\n\nEmail this to: ${candidateEmail}`);
-  };
+  // For now, we'll just show a placeholder
+  // Later we'll add real Supabase queries
 
   return (
     <div className="hr-dashboard">
-      <h1>Send Interview Link to Candidate</h1>
-      
-      <input 
-        placeholder="Candidate Name"
-        value={candidateName}
-        onChange={(e) => setCandidateName(e.target.value)}
-      />
-      
-      <input 
-        placeholder="Candidate Email"
-        value={candidateEmail}
-        onChange={(e) => setCandidateEmail(e.target.value)}
-      />
-      
-      <button onClick={generateLink}>Generate & Copy Link</button>
+      <nav className="navbar">
+        <h2>ScoreBar - HR Dashboard</h2>
+        <button onClick={() => supabase.auth.signOut()}>Logout</button>
+      </nav>
+
+      <div className="container">
+        <h1>Interview Results</h1>
+
+        <div className="candidates-grid">
+          <div className="candidates-list">
+            <div className="candidate-card">
+              <p className="name">No interviews yet</p>
+              <p className="email">Interviews will appear here once candidates complete them</p>
+            </div>
+          </div>
+
+          <div className="candidate-details">
+            <h2>Select a candidate to view results</h2>
+            <p>Once a candidate completes their interview, you'll see:</p>
+            <ul>
+              <li>Video recording of the interview</li>
+              <li>Full transcript of conversation</li>
+              <li>AI scores: Technical, Communication, Overall</li>
+              <li>Advance/Reject buttons</li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
