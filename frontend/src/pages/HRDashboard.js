@@ -10,36 +10,36 @@ function HRDashboard({ supabase }) {
   const [sentInterviews, setSentInterviews] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchInterviews = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('interviews')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setInterviews(data || []);
-    } catch (error) {
-      console.error('Error fetching interviews:', error);
-    }
-  };
-
-  const fetchSentInterviews = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sent_interviews')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (!error) {
-        setSentInterviews(data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching sent interviews:', error);
-    }
-  };
-
   useEffect(() => {
+    const fetchInterviews = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('interviews')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setInterviews(data || []);
+      } catch (error) {
+        console.error('Error fetching interviews:', error);
+      }
+    };
+
+    const fetchSentInterviews = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('sent_interviews')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error) {
+          setSentInterviews(data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching sent interviews:', error);
+      }
+    };
+
     if (step === 'review') {
       fetchInterviews();
     } else if (step === 'tracking') {
