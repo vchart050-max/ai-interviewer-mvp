@@ -17,7 +17,6 @@ function Interview({ supabase }) {
   const mediaRecorderRef = useRef(null);
   const recordingsRef = useRef([]);
 
-  // Load questions from Supabase
   useEffect(() => {
     const loadQuestions = async () => {
       try {
@@ -39,7 +38,7 @@ function Interview({ supabase }) {
 
     loadQuestions();
     startVideo();
-  }, []);
+  }, [candidateId, supabase]);
 
   const startVideo = async () => {
     try {
@@ -59,16 +58,6 @@ function Interview({ supabase }) {
     try {
       const question = questions[currentQuestion];
 
-      // Text-to-speech: Ask question
-      const ttsResponse = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/tts`,
-        { text: question }
-      );
-
-      const audio = new Audio(ttsResponse.data.audioUrl);
-      await audio.play();
-
-      // Start recording
       const stream = videoRef.current.srcObject;
       mediaRecorderRef.current = new MediaRecorder(stream);
       const chunks = [];
@@ -85,7 +74,6 @@ function Interview({ supabase }) {
       mediaRecorderRef.current.start();
       setIsRecording(true);
 
-      // Record for 90 seconds max
       setTimeout(() => {
         if (mediaRecorderRef.current) {
           mediaRecorderRef.current.stop();
@@ -118,7 +106,6 @@ function Interview({ supabase }) {
     try {
       let fullTranscript = '';
 
-      // Transcribe all recordings
       for (const recording of recordingsRef.current) {
         const formData = new FormData();
         formData.append('file', recording.video);
@@ -131,7 +118,6 @@ function Interview({ supabase }) {
         fullTranscript += `Q: ${recording.question}\nA: ${transcriptResponse.data.transcript}\n\n`;
       }
 
-      // Score with Claude
       const scoreResponse = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/interview/score`,
         {
@@ -140,7 +126,6 @@ function Interview({ supabase }) {
         }
       );
 
-      // Save to database
       const { error } = await supabase
         .from('interviews')
         .insert([
@@ -237,154 +222,6 @@ function Interview({ supabase }) {
           )}
         </div>
       </div>
-
-      <style>{`
-        .interview-container {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 20px;
-          min-height: 100vh;
-        }
-
-        .interview-header {
-          text-align: center;
-          margin-bottom: 30px;
-        }
-
-        .interview-header h1 {
-          margin: 0;
-          font-size: 32px;
-        }
-
-        .interview-header p {
-          margin: 10px 0 0 0;
-          color: #666;
-        }
-
-        .interview-content {
-          background: white;
-          padding: 30px;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        video {
-          width: 100%;
-          background: #000;
-          border-radius: 8px;
-          margin-bottom: 20px;
-        }
-
-        .recording-indicator {
-          position: absolute;
-          top: 20px;
-          right: 20px;
-          background: #ff4444;
-          color: white;
-          padding: 10px 15px;
-          border-radius: 4px;
-          font-weight: bold;
-          font-size: 14px;
-        }
-
-        .question-display {
-          margin: 30px 0;
-          padding: 20px;
-          background: #f5f5f5;
-          border-radius: 8px;
-        }
-
-        .question-display h2 {
-          margin: 0 0 10px 0;
-          font-size: 20px;
-        }
-
-        .question-display p {
-          margin: 0;
-          color: #666;
-        }
-
-        .button-group {
-          display: flex;
-          gap: 15px;
-          justify-content: center;
-          margin-top: 30px;
-        }
-
-        button {
-          padding: 12px 24px;
-          border: none;
-          border-radius: 6px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s;
-        }
-
-        .btn-primary {
-          background: #667eea;
-          color: white;
-        }
-
-        .btn-primary:hover {
-          background: #5568d3;
-        }
-
-        .btn-secondary {
-          background: #ff6b6b;
-          color: white;
-        }
-
-        .interview-complete {
-          max-width: 600px;
-          margin: 100px auto;
-          text-align: center;
-          padding: 40px;
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .completion-message {
-          margin: 20px 0;
-          padding: 20px;
-          background: #f0f0f0;
-          border-radius: 8px;
-        }
-
-        .scores {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 20px;
-          margin: 30px 0;
-        }
-
-        .score-box {
-          padding: 20px;
-          background: #f5f5f5;
-          border-radius: 8px;
-        }
-
-        .score-box p {
-          margin: 0 0 10px 0;
-          color: #666;
-        }
-
-        .score-box h2 {
-          margin: 0;
-          font-size: 32px;
-          color: #667eea;
-        }
-
-        .loading, .error {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          font-size: 18px;
-          color: #667eea;
-        }
-      `}</style>
     </div>
   );
 }

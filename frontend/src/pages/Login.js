@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 function Login({ supabase }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('candidate'); // NEW: Add role selection
+  const [role, setRole] = useState('candidate');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -15,14 +15,13 @@ function Login({ supabase }) {
     setLoading(true);
 
     try {
-      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+      const { error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (loginError) throw loginError;
 
-      // NEW: Check role and redirect accordingly
       if (role === 'hr') {
         navigate('/hr-dashboard');
       } else {
@@ -43,7 +42,6 @@ function Login({ supabase }) {
         <p className="subtitle">Login to Your Account</p>
         
         <form onSubmit={handleLogin}>
-          {/* NEW: Role selector */}
           <div className="form-group">
             <label>I am a...</label>
             <select value={role} onChange={(e) => setRole(e.target.value)}>
