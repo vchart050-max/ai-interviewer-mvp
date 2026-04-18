@@ -1,10 +1,10 @@
-/* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Login({ supabase }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('candidate'); // NEW: Add role selection
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -22,9 +22,15 @@ function Login({ supabase }) {
 
       if (loginError) throw loginError;
 
-      navigate('/dashboard');
+      // NEW: Check role and redirect accordingly
+      if (role === 'hr') {
+        navigate('/hr-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message || 'Login failed');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -37,6 +43,15 @@ function Login({ supabase }) {
         <p className="subtitle">Login to Your Account</p>
         
         <form onSubmit={handleLogin}>
+          {/* NEW: Role selector */}
+          <div className="form-group">
+            <label>I am a...</label>
+            <select value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="candidate">Candidate</option>
+              <option value="hr">HR Manager</option>
+            </select>
+          </div>
+
           <div className="form-group">
             <label>Email</label>
             <input
